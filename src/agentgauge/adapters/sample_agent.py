@@ -139,7 +139,7 @@ class SampleAgent(AgentAdapter):
                     final_answer = resp.text or ""
                     status = "OK"
                     break
-                results = [self._execute(tu, sandbox, validator, step) for tu in resp.tool_uses]
+                results = [self._execute(tu, sandbox, validator, step, self._send_status) for tu in resp.tool_uses]
                 messages.append({"role": "user", "content": results})
                 tracker.check(AGENT)
         except BudgetExceeded as exc:
@@ -167,9 +167,15 @@ class SampleAgent(AgentAdapter):
             metadata={"agent_version": self.version, "max_steps": self.max_steps},
         )
 
+    @property
+    def _send_status(self) -> bool:
+        # Converse's toolResult.status is documented for Anthropic models only; other providers get the
+        # error in the result payload ({"error": ...}) instead.
+        return "anthropic" in (self.client.model_id or "").lower()
+
     @staticmethod
     def _execute(tu: ToolUseRequest, sandbox: Sandbox, validator: ArgumentValidator | None,
-                 step: Step) -> dict[str, Any]:
+                 step: Step, send_status: bool = False) -> dict[str, Any]:
         start = time.perf_counter()
         ts = _now()
         result: Any = None
@@ -192,8 +198,10 @@ class SampleAgent(AgentAdapter):
         step.tool_calls.append(ToolCall(id=tu.id, name=tu.name, arguments=tu.input, result=result, error=err,
                                         latency_ms=latency, timestamp=ts, blocked=blocked))
         payload = {"error": err} if err else result
-        return {"toolResult": {
+        tool_result: dict[str, Any] = {
             "toolUseId": tu.id,
             "content": [{"text": json.dumps(payload, default=str, ensure_ascii=False)}],
-            "status": "error" if err else "success",
-        }}
+        }
+        if send_status:
+            tool_result["status"] = "error" if err else "success"
+        return {"toolResult": tool_result}

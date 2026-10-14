@@ -408,7 +408,8 @@ def dashboard(
     app_path = Path(__file__).parent / "dashboard" / "app.py"
     console.print(f"Dashboard on http://localhost:{port}  (db: {env['AGENTGAUGE_DB']})")
     raise typer.Exit(subprocess.call([sys.executable, "-m", "streamlit", "run", str(app_path),
-                                      "--server.port", str(port), "--server.headless", "true"], env=env))
+                                      "--server.port", str(port), "--server.headless", "true",
+                                      "--browser.gatherUsageStats", "false"], env=env))
 
 
 @app.command()

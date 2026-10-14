@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - name: Install
+        run: pip install -e ".[dev]"
+      - name: Lint
+        run: ruff check src tests validation
+      - name: Test (offline, mock mode, no AWS credentials)
+        env:
+          AWS_EC2_METADATA_DISABLED: "true"
+        run: pytest
+      - name: Offline end-to-end demo
+        run: |
+          agentgauge demo --db /tmp/ci.db
+          agentgauge report --run latest --format html --db /tmp/ci.db --out /tmp/report.html

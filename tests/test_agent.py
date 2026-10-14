@@ -37,7 +37,7 @@ def test_tool_loop_records_trace_and_cost():
     # the conversation sent back to the model contains a Converse toolResult block
     second_request = client.calls[1]["messages"]
     assert second_request[2]["content"][0]["toolResult"]["toolUseId"] == "t1"
-    assert second_request[2]["content"][0]["toolResult"]["status"] == "success"
+    assert "status" not in second_request[2]["content"][0]["toolResult"]  # non-Anthropic model id
 
 
 def test_tool_error_is_returned_to_model():
@@ -45,6 +45,15 @@ def test_tool_error_is_returned_to_model():
     client = MockClient(script=[tool("lookup_order", {"order_id": "9999"}), final("Not found.")])
     t = SampleAgent(client, "v1").run(sc, Sandbox(), tracker())
     assert t.steps[1].tool_calls[0].error and t.status == "OK"
+    result_block = client.calls[1]["messages"][2]["content"][0]["toolResult"]
+    assert '"error"' in result_block["content"][0]["text"]
+
+
+def test_tool_result_status_only_for_anthropic_models():
+    sc = scenario(user_prompt="Order 9999?")
+    client = MockClient(script=[tool("lookup_order", {"order_id": "9999"}), final("Not found.")],
+                        model_id="us.anthropic.example-v1:0")
+    SampleAgent(client, "v1").run(sc, Sandbox(), tracker())
     assert client.calls[1]["messages"][2]["content"][0]["toolResult"]["status"] == "error"
 
 

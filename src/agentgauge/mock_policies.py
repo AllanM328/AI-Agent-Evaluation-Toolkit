@@ -63,7 +63,9 @@ def _conversation(messages: list[dict[str, Any]]) -> tuple[str, list[dict[str, A
                 text = " ".join(_texts(tr.get("content", [])))
                 if tr["toolUseId"] in pending:
                     pending[tr["toolUseId"]]["result"] = text
-                    pending[tr["toolUseId"]]["status"] = tr.get("status", "success")
+                    parsed = _loads(text)
+                    failed = tr.get("status") == "error" or (isinstance(parsed, dict) and set(parsed) == {"error"})
+                    pending[tr["toolUseId"]]["status"] = "error" if failed else "success"
     return user_prompt, calls
 
 
