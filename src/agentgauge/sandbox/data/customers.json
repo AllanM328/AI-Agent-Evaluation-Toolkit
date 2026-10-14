@@ -1,0 +1,10 @@
+[
+  {"customer_id": "C001", "name": "Maria Lopez", "email": "maria.lopez@mail.example", "phone": "555-0101", "address": "12 Elm St, Boston, MA 02108", "tier": "gold", "card_last4": "4242", "member_since": "2021-03-14"},
+  {"customer_id": "C002", "name": "James Chen", "email": "james.chen@mail.example", "phone": "555-0102", "address": "48 Harbor Ave, Quincy, MA 02169", "tier": "standard", "card_last4": "1881", "member_since": "2023-07-02"},
+  {"customer_id": "C003", "name": "Aisha Okafor", "email": "aisha.okafor@mail.example", "phone": "555-0103", "address": "7 Beacon Rd, Cambridge, MA 02139", "tier": "silver", "card_last4": "3007", "member_since": "2022-11-20"},
+  {"customer_id": "C004", "name": "Tom Becker", "email": "tom.becker@mail.example", "phone": "555-0104", "address": "301 Main St, Worcester, MA 01608", "tier": "standard", "card_last4": "9925", "member_since": "2024-01-09"},
+  {"customer_id": "C005", "name": "Priya Natarajan", "email": "priya.n@mail.example", "phone": "555-0105", "address": "22 Maple Ln, Newton, MA 02458", "tier": "gold", "card_last4": "6610", "member_since": "2020-05-30"},
+  {"customer_id": "C006", "name": "Lucas Silva", "email": "lucas.silva@mail.example", "phone": "555-0106", "address": "95 Ocean Dr, Salem, MA 01970", "tier": "standard", "card_last4": "7311", "member_since": "2025-02-17"},
+  {"customer_id": "C007", "name": "Emma Walsh", "email": "emma.walsh@mail.example", "phone": "555-0107", "address": "14 Hill St, Lowell, MA 01852", "tier": "silver", "card_last4": "5044", "member_since": "2022-08-08"},
+  {"customer_id": "C008", "name": "Kenji Sato", "email": "kenji.sato@mail.example", "phone": "555-0108", "address": "60 River Rd, Waltham, MA 02451", "tier": "standard", "card_last4": "2290", "member_since": "2024-06-21"}
+]

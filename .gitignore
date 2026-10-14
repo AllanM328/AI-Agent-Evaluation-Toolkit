@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+
+# Tooling caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# AgentGauge outputs (generated; never commit run databases or exported reports)
+*.db
+*.db-journal
+reports/
+
+# Local overrides / secrets
+.env
+config.local.yaml
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/

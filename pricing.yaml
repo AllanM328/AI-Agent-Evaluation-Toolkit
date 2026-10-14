@@ -1,0 +1,26 @@
+# USD prices per 1,000 tokens, keyed by the exact model ID / inference profile ID used in config.yaml.
+#
+# HUMANS: fill these in from the current Amazon Bedrock pricing page
+#   https://aws.amazon.com/bedrock/pricing/
+# Bedrock usually lists prices per 1M tokens: divide by 1000 to get the per-1K values used here.
+#
+# If a model has no entry, AgentGauge logs a loud warning, reports tokens only, and refuses
+# to start live runs unless you pass --allow-unpriced (USD budget caps can't be enforced).
+#
+# Lookup order: exact ID first, then the ID with a cross-region prefix stripped
+# (e.g. "us.amazon.nova-lite-v1:0" falls back to "amazon.nova-lite-v1:0").
+
+models:
+  # Example entry (placeholders, NOT real prices):
+  # "your-target-model-id":
+  #   input_per_1k: 0.0
+  #   output_per_1k: 0.0
+  # "your-judge-model-id":
+  #   input_per_1k: 0.0
+  #   output_per_1k: 0.0
+
+  # ILLUSTRATIVE ONLY. Fake rates for the offline mock model so the cost and budget code paths
+  # are exercised without AWS. Mock runs are labeled "mock" everywhere and are not real costs.
+  mock-model:
+    input_per_1k: 0.0005
+    output_per_1k: 0.002
