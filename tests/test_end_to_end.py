@@ -131,3 +131,18 @@ def test_replay_adhoc_trace(config, tmp_path):
     p.write_text(json.dumps(t) + "\n")
     s = run_replay(config, load_traces(p), mock=True, db=Database(config.db_path))
     assert s.n_scenarios == 1 and any("generic expectations" in n for n in s.notes)
+
+
+def test_estimate_replay_cost_is_judge_only(config, tmp_path):
+    from agentgauge.runner import estimate_replay_cost
+
+    pricing = tmp_path / "pricing.yaml"
+    pricing.write_text("models:\n  live-judge:\n    input_per_1k: 0.003\n    output_per_1k: 0.015\n")
+    config.paths.pricing = str(pricing)
+    config.models.judge_model_id = "live-judge"
+    traces = load_traces(REPO_ROOT / "examples" / "traces" / "example_trace.json")
+    est = estimate_replay_cost(config, traces)
+    assert est.agent_calls == 0 and est.judge_calls == config.judge.samples * len(traces)
+    assert est.expected_usd and est.expected_usd > 0 and est.within_session_cap
+    config.models.judge_model_id = "unpriced"
+    assert estimate_replay_cost(config, traces).expected_usd is None

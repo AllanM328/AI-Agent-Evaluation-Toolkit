@@ -7,7 +7,9 @@ models:
   # Discover what your account/region can use with:  agentgauge list-models --region <region>
   target_model_id: null      # env: AGENTGAUGE_TARGET_MODEL_ID  (cheap, tool-use capable model)
   judge_model_id: null       # env: AGENTGAUGE_JUDGE_MODEL_ID   (stronger model for the LLM judge)
-  region: null               # env: AGENTGAUGE_REGION, AWS_REGION, AWS_DEFAULT_REGION (this project: us-east-2)
+  region: us-east-2          # this project's selected Region (new AWS experience: one Region per project).
+                             # env AGENTGAUGE_REGION overrides it; AWS_REGION / AWS_DEFAULT_REGION only fill
+                             # an unset region, so they can't redirect calls away from us-east-2.
   profile: null              # env: AGENTGAUGE_PROFILE. AWS CLI profile used explicitly for Bedrock calls
                              # (this project: agentgauge, created with `aws login --profile agentgauge`)
 

@@ -10,6 +10,7 @@ from pathlib import Path
 
 import typer
 from rich.console import Console
+from rich.markup import escape
 from rich.table import Table
 
 from agentgauge.config import Config, load_config
@@ -25,7 +26,13 @@ from agentgauge.report import (
     render_html,
     render_markdown,
 )
-from agentgauge.runner import estimate_cost, resolve_agent_version, run_agent_suite, run_replay
+from agentgauge.runner import (
+    estimate_cost,
+    estimate_replay_cost,
+    resolve_agent_version,
+    run_agent_suite,
+    run_replay,
+)
 from agentgauge.scenarios import ScenarioError, load_scenarios
 
 app = typer.Typer(add_completion=False, no_args_is_help=True,
@@ -51,7 +58,8 @@ def _setup(config: Path | None, db: Path | None) -> tuple[Config, Database]:
 
 
 def _fail(msg: str, code: int = 1) -> typer.Exit:
-    err.print(f"[red]Error:[/red] {msg}")
+    # Messages contain literal brackets (e.g. `pip install -e ".[dev]"`), so never parse them as markup.
+    err.print(f"[red]Error:[/red] {escape(msg)}", soft_wrap=True)
     return typer.Exit(code)
 
 
@@ -73,13 +81,42 @@ def _progress(i: int, n: int, sc: Scenario, r: ScenarioResult) -> None:
                   f"steps={len(r.trace.model_steps())} cost={fmt(r.trace.total_cost_usd, 'usd')}{extra}")
 
 
-def _has_aws_credentials(profile: str | None = None) -> bool:
+def _aws_credentials_error(profile: str | None = None) -> str | None:
+    """None if usable AWS credentials resolve, else a short reason.
+
+    get_frozen_credentials() forces a refresh when needed, so an expired `aws login` session that can no
+    longer be refreshed fails here instead of turning every scenario of a live run into an ERROR.
+    """
     try:
         from agentgauge.model_client import aws_session
 
-        return aws_session(profile).get_credentials() is not None
-    except Exception:  # missing profile, expired login, missing awscrt, ...
-        return False
+        creds = aws_session(profile).get_credentials()
+        if creds is None:
+            return "no credentials found"
+        creds.get_frozen_credentials()
+        return None
+    except Exception as exc:  # missing profile, expired login, missing awscrt, sign-in host unreachable, ...
+        return f"{type(exc).__name__}: {exc}"
+
+
+def _live_gate(cfg: Config, est, *, allow_unpriced: bool, yes: bool, prompt: str) -> None:
+    """Shared guardrails before any live Bedrock call: credentials, printed estimate, pricing, cap, confirm."""
+    problem = _aws_credentials_error(cfg.models.profile)
+    if problem:
+        who = f"profile '{cfg.models.profile}'" if cfg.models.profile else "the default credential chain"
+        raise _fail(f"No usable AWS credentials for {who} ({problem}). Sign in with `aws login --profile <name>` "
+                    "and set AGENTGAUGE_PROFILE (or models.profile). If you are already signed in, re-install "
+                    "AgentGauge (`pip install -e \".[dev]\"`): `aws login` credentials need boto3[crt]>=1.41. "
+                    "Or use --mock.")
+    _print_estimate(est)
+    if est.expected_usd is None and not allow_unpriced:
+        raise _fail("Cannot estimate USD cost because a model is missing from pricing.yaml. Fill in "
+                    "pricing.yaml, or pass --allow-unpriced to run with token caps only.")
+    if est.expected_usd is not None and est.expected_usd > cfg.budget.max_usd_per_session:
+        raise _fail(f"Estimated cost {fmt(est.expected_usd, 'usd')} exceeds max_usd_per_session "
+                    f"{fmt(cfg.budget.max_usd_per_session, 'usd')}. Reduce the work or raise the cap.")
+    if not yes and not typer.confirm(prompt, default=False):
+        raise typer.Exit(1)
 
 
 def _print_estimate(est) -> None:
@@ -135,20 +172,9 @@ def run(
         if use_judge and not cfg.models.judge_model_id:
             raise _fail("No judge model configured. Set models.judge_model_id / AGENTGAUGE_JUDGE_MODEL_ID, "
                         "or pass --no-judge.")
-        if not _has_aws_credentials(cfg.models.profile):
-            who = f"profile '{cfg.models.profile}'" if cfg.models.profile else "the default credential chain"
-            raise _fail(f"No usable AWS credentials for {who}. Sign in with `aws login --profile <name>` and set "
-                        "AGENTGAUGE_PROFILE (or models.profile), or use --mock.")
         est = estimate_cost(cfg, agent, scenarios, use_judge=use_judge)
-        _print_estimate(est)
-        if est.expected_usd is None and not allow_unpriced:
-            raise _fail("Cannot estimate USD cost because a model is missing from pricing.yaml. Fill in "
-                        "pricing.yaml, or pass --allow-unpriced to run with token caps only.")
-        if est.expected_usd is not None and est.expected_usd > cfg.budget.max_usd_per_session:
-            raise _fail(f"Estimated cost {fmt(est.expected_usd, 'usd')} exceeds max_usd_per_session "
-                        f"{fmt(cfg.budget.max_usd_per_session, 'usd')}. Reduce the suite or raise the cap.")
-        if not yes and not typer.confirm(f"Run {len(scenarios)} scenario(s) live on Bedrock?", default=False):
-            raise typer.Exit(1)
+        _live_gate(cfg, est, allow_unpriced=allow_unpriced, yes=yes,
+                   prompt=f"Run {len(scenarios)} scenario(s) live on Bedrock?")
 
     tracker = CostTracker(Pricing.load(cfg.pricing_path), cfg.budget)
     console.print(f"Running {len(scenarios)} scenario(s) · agent={agent} · mode={'mock' if mock else 'live'} · "
@@ -191,11 +217,17 @@ def replay(
                                      help="Trace JSON file (object, list, or JSONL). Repeatable."),
     label: str = typer.Option(None, "--label", "-l"),
     mock: bool = MockOpt,
-    no_judge: bool = typer.Option(False, "--no-judge"),
+    no_judge: bool = typer.Option(False, "--no-judge", help="Deterministic evaluators only (no model calls)."),
+    allow_unpriced: bool = typer.Option(False, "--allow-unpriced",
+                                        help="Allow a live judge that is missing from pricing.yaml."),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Don't ask for confirmation before live judge calls."),
     config: Path = ConfigOpt,
     db: Path = DbOpt,
 ) -> None:
-    """Score externally produced traces without running any agent ("bring your own agent")."""
+    """Score externally produced traces without running any agent ("bring your own agent").
+
+    Without --mock or --no-judge, the LLM judge runs live on Bedrock and is gated like `run`.
+    """
     from agentgauge.adapters import load_traces
 
     cfg, database = _setup(config, db)
@@ -208,8 +240,11 @@ def replay(
     if not traces:
         raise _fail("No traces found.")
     use_judge = not no_judge and cfg.judge.enabled
-    if use_judge and not mock and not cfg.models.judge_model_id:
-        raise _fail("No judge model configured: pass --mock (offline judge), --no-judge, or configure one.")
+    if use_judge and not mock:
+        if not cfg.models.judge_model_id:
+            raise _fail("No judge model configured: pass --mock (offline judge), --no-judge, or configure one.")
+        _live_gate(cfg, estimate_replay_cost(cfg, traces), allow_unpriced=allow_unpriced, yes=yes,
+                   prompt=f"Judge {len(traces)} trace(s) live on Bedrock?")
     summary = run_replay(cfg, traces, label=label, mock=mock, use_judge=use_judge, db=database, progress=_progress)
     _print_summary(summary)
     console.print(f"Stored as [b]{summary.run_id}[/b].")

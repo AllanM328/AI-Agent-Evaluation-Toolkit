@@ -34,7 +34,7 @@ agentgauge dashboard                                   # http://localhost:8501
 2. **Pick models.** Never hard-code them; AgentGauge reads them from config or env:
    ```bash
    export AGENTGAUGE_PROFILE=agentgauge       # used explicitly for every Bedrock call
-   export AGENTGAUGE_REGION=us-east-2
+   # Region: config.yaml pins us-east-2 (AGENTGAUGE_REGION would override it)
    agentgauge list-models --contains nova      # or claude, llama, mistral ...
    export AGENTGAUGE_TARGET_MODEL_ID="<cheap tool-use model id>"
    export AGENTGAUGE_JUDGE_MODEL_ID="<stronger model id>"
@@ -161,6 +161,7 @@ Any agent that can emit the trace format can be scored without running anything:
 
 ```bash
 agentgauge replay --trace examples/traces/example_trace.json --mock   # --mock = offline judge
+# without --mock/--no-judge the judge runs live on Bedrock, gated like `run` (estimate, pricing, cap, confirm)
 ```
 
 A trace file can hold one object, a JSON list, or JSON Lines. Minimal shape (see `src/agentgauge/models.py` and `examples/traces/example_trace.json`):

@@ -13,7 +13,7 @@ All code milestones in plan section 12 that don't need AWS access or human label
 - Streamlit dashboard (overview, run detail, compare, cost & efficiency, evaluator trust).
 - Judge-validation tooling (blind labeling CSV, import, agreement and Cohen's kappa). No labels are fabricated.
 - Docs: README, DECISIONS, LIMITATIONS, DEMO_SCRIPT; GitHub Actions CI (ruff + pytest on 3.11/3.12 + offline demo).
-- 77 offline tests passing; `ruff check` clean.
+- 83 offline tests passing; `ruff check` clean.
 
 **In progress / not yet verified**
 - **No live Bedrock call has been made yet.** The Converse request/response mapping is unit-tested against a stub, but the first real run may surface model-specific quirks (e.g. tool-use support, inference-profile ids).
@@ -28,7 +28,7 @@ All code milestones in plan section 12 that don't need AWS access or human label
 - Done in the repo: CLAUDE.md (Step 7; project guardrails + AWS's rules verbatim, help_level MEDIUM), `AGENTGAUGE_PROFILE` support, `boto3[crt]>=1.41`, README switched to us-east-2 + profile `agentgauge`.
 
 **Next three tasks**
-1. Humans, on your own computer: run the Agent Toolkit setup (profile `agentgauge`, Region us-east-2, new AWS experience), then `pip install -e ".[dev]"`, `export AGENTGAUGE_PROFILE=agentgauge AGENTGAUGE_REGION=us-east-2`, `agentgauge list-models`; set `AGENTGAUGE_TARGET_MODEL_ID` / `AGENTGAUGE_JUDGE_MODEL_ID`, fill in `pricing.yaml`, and record the chosen IDs in the README table.
+1. Humans, on your own computer: run the Agent Toolkit setup (profile `agentgauge`, Region us-east-2, new AWS experience), then `pip install -e ".[dev]"`, `export AGENTGAUGE_PROFILE=agentgauge` (config.yaml pins Region us-east-2), `agentgauge list-models`; set `AGENTGAUGE_TARGET_MODEL_ID` / `AGENTGAUGE_JUDGE_MODEL_ID`, fill in `pricing.yaml`, and record the chosen IDs in the README table.
 2. `agentgauge estimate`, then a 2–3 scenario live smoke test (`--scenario fn_order_status_001 --scenario inj_doc_email_001`); fix any provider quirks; then full v1 and v2 live passes.
 3. `agentgauge export-labels --run baseline --run hardened`; humans label; `import-labels`; `validate-judge`. Spot-check scenario fairness and evidence strings against the live traces.
 

@@ -21,9 +21,8 @@ def cli_env(tmp_path, monkeypatch):
     return ["--db", str(db)], tmp_path
 
 
-def invoke(*args):
-    result = runner.invoke(app, list(args), catch_exceptions=False)
-    return result
+def invoke(*args, input=None):
+    return runner.invoke(app, list(args), catch_exceptions=False, input=input)
 
 
 def test_run_mock_list_report_compare(cli_env):
@@ -65,16 +64,25 @@ def test_live_run_refuses_without_aws_credentials(cli_env, monkeypatch):
     db, _ = cli_env
     monkeypatch.setenv("AGENTGAUGE_TARGET_MODEL_ID", "some-model")
     monkeypatch.setenv("AGENTGAUGE_JUDGE_MODEL_ID", "some-judge")
-    monkeypatch.setattr("agentgauge.cli._has_aws_credentials", lambda profile=None: False)
+    monkeypatch.setenv("AGENTGAUGE_PROFILE", "agentgauge")
+    seen = []
+
+    def no_creds(profile=None):
+        seen.append(profile)
+        return "LoginRefreshRequired: session expired"
+
+    monkeypatch.setattr("agentgauge.cli._aws_credentials_error", no_creds)
     r = invoke("run", "--agent", "sample_v1", *db)
-    assert r.exit_code == 1 and "No usable AWS credentials" in r.output and "aws login" in r.output
+    assert r.exit_code == 1 and "No usable AWS credentials for profile 'agentgauge'" in r.output
+    assert "LoginRefreshRequired" in r.output and "aws login" in r.output and "boto3[crt]" in r.output
+    assert seen == ["agentgauge"]  # the configured profile is what gets checked
 
 
 def test_live_run_stops_when_unpriced_or_over_budget(cli_env, monkeypatch, tmp_path):
     db, _ = cli_env
     monkeypatch.setenv("AGENTGAUGE_TARGET_MODEL_ID", "unpriced-model")
     monkeypatch.setenv("AGENTGAUGE_JUDGE_MODEL_ID", "unpriced-judge")
-    monkeypatch.setattr("agentgauge.cli._has_aws_credentials", lambda profile=None: True)
+    monkeypatch.setattr("agentgauge.cli._aws_credentials_error", lambda profile=None: None)
     r = invoke("run", "--agent", "sample_v1", *db)
     assert r.exit_code == 1 and "missing from pricing.yaml" in r.output and "Cost estimate" in r.output
 
@@ -88,6 +96,62 @@ def test_live_run_stops_when_unpriced_or_over_budget(cli_env, monkeypatch, tmp_p
     monkeypatch.setenv("AGENTGAUGE_JUDGE_MODEL_ID", "pricey")
     r2 = invoke("run", "--agent", "sample_v1", "--config", str(cfg), *db)
     assert r2.exit_code == 1 and "exceeds max_usd_per_session" in r2.output
+
+
+def _priced_config(tmp_path, cap):
+    cfg, pricing = tmp_path / "config.yaml", tmp_path / "pricing.yaml"
+    pricing.write_text("models:\n  judge-x:\n    input_per_1k: 0.003\n    output_per_1k: 0.015\n")
+    cfg.write_text(f"paths:\n  scenarios: {REPO_ROOT / 'scenarios'}\n  pricing: {pricing}\n"
+                   f"budget:\n  max_usd_per_session: {cap}\n")
+    return cfg
+
+
+def test_live_replay_is_gated_like_run(cli_env, monkeypatch, tmp_path):
+    db, _ = cli_env
+    trace = str(REPO_ROOT / "examples/traces/example_trace.json")
+    calls = []
+    monkeypatch.setattr("agentgauge.runner.build_judge_client", lambda *a, **k: calls.append(1))
+    monkeypatch.setenv("AGENTGAUGE_JUDGE_MODEL_ID", "unpriced-judge")
+
+    monkeypatch.setattr("agentgauge.cli._aws_credentials_error", lambda profile=None: "no credentials found")
+    r = invoke("replay", "--trace", trace, *db)
+    assert r.exit_code == 1 and "No usable AWS credentials" in r.output
+
+    monkeypatch.setattr("agentgauge.cli._aws_credentials_error", lambda profile=None: None)
+    r = invoke("replay", "--trace", trace, *db)
+    assert r.exit_code == 1 and "missing from pricing.yaml" in r.output and "Cost estimate" in r.output
+
+    monkeypatch.setenv("AGENTGAUGE_JUDGE_MODEL_ID", "judge-x")
+    r = invoke("replay", "--trace", trace, "--config", str(_priced_config(tmp_path, 0.000001)), *db)
+    assert r.exit_code == 1 and "exceeds max_usd_per_session" in r.output
+
+    r = invoke("replay", "--trace", trace, "--config", str(_priced_config(tmp_path, 2.0)), *db, input="n\n")
+    assert r.exit_code == 1 and "Judge 2 trace(s) live on Bedrock?" in r.output
+    assert calls == []  # no live judge client was ever built
+
+
+def test_live_replay_runs_after_confirmation(cli_env, monkeypatch, tmp_path):
+    from agentgauge.model_client import MockClient
+    from agentgauge.runner import _JudgeRouter
+
+    db, _ = cli_env
+    monkeypatch.setenv("AGENTGAUGE_JUDGE_MODEL_ID", "judge-x")
+    monkeypatch.setattr("agentgauge.cli._aws_credentials_error", lambda profile=None: None)
+    monkeypatch.setattr("agentgauge.runner.build_judge_client", lambda *a, **k: MockClient(policy=_JudgeRouter()))
+    r = invoke("replay", "--trace", str(REPO_ROOT / "examples/traces/example_trace.json"),
+               "--config", str(_priced_config(tmp_path, 2.0)), "--yes", *db)
+    assert r.exit_code == 0, r.output
+    assert "Cost estimate" in r.output and "Stored as" in r.output
+
+
+def test_list_models_passes_profile_and_region(cli_env, monkeypatch):
+    seen = []
+    monkeypatch.setattr("agentgauge.model_client.list_bedrock_models",
+                        lambda region, profile=None: seen.append((region, profile)) or [])
+    monkeypatch.setenv("AGENTGAUGE_PROFILE", "agentgauge")
+    assert invoke("list-models").exit_code == 0
+    assert invoke("list-models", "--profile", "other", "--region", "us-west-2").exit_code == 0
+    assert seen == [("us-east-2", "agentgauge"), ("us-west-2", "other")]
 
 
 def test_estimate_command(cli_env):

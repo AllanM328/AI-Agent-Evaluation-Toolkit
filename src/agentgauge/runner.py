@@ -157,22 +157,12 @@ def run_agent_suite(
                    judge_client=judge, tracker=tracker, db=db, progress=progress)
 
 
-def run_replay(
-    config: Config, traces: list[Trace], *, label: str | None = None, mock: bool = False, use_judge: bool = True,
-    db: Database | None = None, progress: Progress | None = None,
-) -> RunSummary:
-    """Score externally supplied traces. Scenario expectations come from the scenario library when the
-    trace's scenario_id matches; otherwise an ad-hoc scenario with generic checks is used."""
-    pricing = Pricing.load(config.pricing_path)
+def replay_scenarios(config: Config, traces: list[Trace]) -> tuple[list[Scenario], int]:
+    """Scenario for each trace (library match or ad-hoc), plus how many were ad-hoc."""
     library = {s.id: s for s in load_scenarios(config.scenarios_path, "all")} if config.scenarios_path.exists() else {}
     scenarios: list[Scenario] = []
     adhoc = 0
     for t in traces:
-        if t.total_cost_usd is None and t.model_id:
-            cost = pricing.cost(t.model_id, t.total_input_tokens, t.total_output_tokens)
-            if cost is not None:
-                t.total_cost_usd = round(cost, 8)
-                t.metadata["cost_source"] = "computed from logged tokens and pricing.yaml"
         if t.scenario_id in library:
             scenarios.append(library[t.scenario_id])
         else:
@@ -180,6 +170,23 @@ def run_replay(
             scenarios.append(Scenario(id=t.scenario_id, category="functional", user_prompt=t.user_prompt,
                                       description="Ad-hoc scenario (no matching scenario file): generic checks only",
                                       tags=["adhoc"]))
+    return scenarios, adhoc
+
+
+def run_replay(
+    config: Config, traces: list[Trace], *, label: str | None = None, mock: bool = False, use_judge: bool = True,
+    db: Database | None = None, progress: Progress | None = None,
+) -> RunSummary:
+    """Score externally supplied traces. Scenario expectations come from the scenario library when the
+    trace's scenario_id matches; otherwise an ad-hoc scenario with generic checks is used."""
+    pricing = Pricing.load(config.pricing_path)
+    for t in traces:
+        if t.total_cost_usd is None and t.model_id:
+            cost = pricing.cost(t.model_id, t.total_input_tokens, t.total_output_tokens)
+            if cost is not None:
+                t.total_cost_usd = round(cost, 8)
+                t.metadata["cost_source"] = "computed from logged tokens and pricing.yaml"
+    scenarios, adhoc = replay_scenarios(config, traces)
     tracker = CostTracker(pricing, config.budget)
     judge = build_judge_client(config, mock) if use_judge and config.judge.enabled else None
     summary = execute(config, ReplayAdapter(traces), scenarios, mode="replay", suite="replay", label=label,
@@ -282,4 +289,26 @@ def estimate_cost(config: Config, agent_alias: str, scenarios: list[Scenario], *
             est.warnings.append(f"Judge model '{judge_id}' has no price in pricing.yaml: USD estimate unavailable.")
     if est.target_priced and est.judge_priced:
         est.expected_usd = round((est.agent_usd or 0) + (est.judge_usd or 0), 6)
+    return est
+
+
+def estimate_replay_cost(config: Config, traces: list[Trace], *, pricing: Pricing | None = None) -> CostEstimate:
+    """Dry-run estimate for a live-judge replay: only judge (and LLM-groundedness) calls cost money."""
+    pricing = pricing or Pricing.load(config.pricing_path)
+    f = config.budget.estimate_safety_factor
+    judge_id = config.models.judge_model_id
+    est = CostEstimate(scenarios=len(traces), judge_model_id=judge_id, target_priced=True,
+                       judge_priced=pricing.get(judge_id) is not None, safety_factor=f,
+                       session_cap_usd=config.budget.max_usd_per_session)
+    calls = config.judge.samples + (1 if config.groundedness.mode == "llm" else 0)
+    scenarios, _ = replay_scenarios(config, traces)
+    for trace, sc in zip(traces, scenarios, strict=True):
+        est.judge_calls += calls
+        est.judge_input_tokens += (approx_tokens(JUDGE_SYSTEM) + approx_tokens(build_judge_prompt(trace, sc))) * calls
+        est.judge_output_tokens += JUDGE_OUTPUT_TOKENS * calls
+    cost = pricing.cost(judge_id, est.judge_input_tokens, est.judge_output_tokens)
+    if cost is None:
+        est.warnings.append(f"Judge model '{judge_id}' has no price in pricing.yaml: USD estimate unavailable.")
+    else:
+        est.judge_usd = est.expected_usd = round(cost * f, 6)
     return est
