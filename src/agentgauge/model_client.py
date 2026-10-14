@@ -72,16 +72,17 @@ class ModelClient(ABC):
 class BedrockClient(ModelClient):
     """Amazon Bedrock Runtime Converse API client (supports tool use)."""
 
-    def __init__(self, model_id: str, region: str | None = None, client: Any | None = None):
+    def __init__(self, model_id: str, region: str | None = None, client: Any | None = None,
+                 profile: str | None = None):
         if not model_id:
             raise ValueError("BedrockClient needs a model_id (set it in config.yaml or via env vars).")
         self.model_id = model_id
         self.region = region
+        self.profile = profile
         if client is None:
-            import boto3
             from botocore.config import Config as BotoConfig
 
-            client = boto3.client(
+            client = aws_session(profile).client(
                 "bedrock-runtime",
                 region_name=region,
                 config=BotoConfig(retries={"max_attempts": 6, "mode": "adaptive"}, read_timeout=120),
@@ -126,11 +127,16 @@ def parse_converse_response(resp: dict[str, Any], model_id: str, measured_ms: in
     )
 
 
-def list_bedrock_models(region: str | None) -> list[dict[str, str]]:
-    """List text foundation models and inference profiles available in `region`."""
+def aws_session(profile: str | None = None) -> Any:
+    """boto3 session; a named profile is passed explicitly so it beats any AWS_* key env vars."""
     import boto3
 
-    bedrock = boto3.client("bedrock", region_name=region)
+    return boto3.Session(profile_name=profile) if profile else boto3.Session()
+
+
+def list_bedrock_models(region: str | None, profile: str | None = None) -> list[dict[str, str]]:
+    """List text foundation models and inference profiles available in `region`."""
+    bedrock = aws_session(profile).client("bedrock", region_name=region)
     rows: list[dict[str, str]] = []
     for m in bedrock.list_foundation_models(byOutputModality="TEXT").get("modelSummaries", []):
         rows.append({
@@ -233,7 +239,7 @@ class MockClient(ModelClient):
 
 
 def make_client(model_id: str | None, *, mock: bool, region: str | None = None,
-                policy: Policy | None = None) -> ModelClient:
+                policy: Policy | None = None, profile: str | None = None) -> ModelClient:
     """Factory used by the runner and CLI."""
     if mock:
         if policy is None:
@@ -245,4 +251,4 @@ def make_client(model_id: str | None, *, mock: bool, region: str | None = None,
             "or AGENTGAUGE_TARGET_MODEL_ID / AGENTGAUGE_JUDGE_MODEL_ID (see `agentgauge list-models`), "
             "or pass --mock to run offline."
         )
-    return BedrockClient(model_id=model_id, region=region)
+    return BedrockClient(model_id=model_id, region=region, profile=profile)

@@ -56,11 +56,13 @@ class _JudgeRouter:
 
 def build_target_client(config: Config, mock: bool) -> ModelClient:
     return make_client(config.models.target_model_id, mock=mock, region=config.models.region,
+                       profile=config.models.profile,
                        policy=SimulatedSupportAgent() if mock else None)
 
 
 def build_judge_client(config: Config, mock: bool) -> ModelClient:
     return make_client(config.models.judge_model_id, mock=mock, region=config.models.region,
+                       profile=config.models.profile,
                        policy=_JudgeRouter() if mock else None)
 
 

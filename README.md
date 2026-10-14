@@ -30,15 +30,16 @@ agentgauge dashboard                                   # http://localhost:8501
 
 ## Live runs on Amazon Bedrock
 
-1. **AWS setup (humans).** Enable Bedrock model access in your region, configure credentials (`aws configure` or SSO), and **set an AWS Budgets alarm** with a low cap.
+1. **AWS setup (humans, on your own computer).** Follow the [Agent Toolkit for AWS setup](https://raw.githubusercontent.com/aws/agent-toolkit-for-aws/refs/heads/main/setup-instructions/setup.md) with profile `agentgauge`, Region `us-east-2` (this project's selected Region on the new AWS experience), and the new AWS experience. It installs the AWS CLI and signs you in with `aws login --profile agentgauge`. **Set an AWS Budgets alarm or spend limit** with a low cap before the first live run. Re-install AgentGauge after pulling (`pip install -e ".[dev]"`): reading `aws login` credentials needs `boto3[crt]>=1.41`.
 2. **Pick models.** Never hard-code them; AgentGauge reads them from config or env:
    ```bash
-   agentgauge list-models --region us-east-1 --contains nova    # or claude, llama, mistral ...
-   export AGENTGAUGE_TARGET_MODEL_ID="<cheap tool-use model or inference-profile id>"
+   export AGENTGAUGE_PROFILE=agentgauge       # used explicitly for every Bedrock call
+   export AGENTGAUGE_REGION=us-east-2
+   agentgauge list-models --contains nova      # or claude, llama, mistral ...
+   export AGENTGAUGE_TARGET_MODEL_ID="<cheap tool-use model id>"
    export AGENTGAUGE_JUDGE_MODEL_ID="<stronger model id>"
-   export AGENTGAUGE_REGION=us-east-1
    ```
-   Models that list only `INFERENCE_PROFILE` must be called with the inference-profile id (e.g. `us.<provider>.<model>`).
+   Prefer models that list `ON_DEMAND` in us-east-2. Models that list only `INFERENCE_PROFILE` need an inference-profile id (e.g. `us.<provider>.<model>`). Those route requests across Regions, which the new AWS experience's single-Region rules may not allow (unverified), so check before relying on one.
 3. **Fill in `pricing.yaml`** from the [Bedrock pricing page](https://aws.amazon.com/bedrock/pricing/). Prices are per 1K tokens, so divide per-1M prices by 1000.
 4. **Estimate, then run.** Every live `run` repeats the estimate first and stops if it exceeds `max_usd_per_session`:
    ```bash
@@ -55,8 +56,8 @@ agentgauge dashboard                                   # http://localhost:8501
 
 | Role | Model / inference profile ID | Region | Notes |
 |---|---|---|---|
-| Target agent | _TBD_ | _TBD_ | cheap, tool-use capable |
-| LLM judge | _TBD_ | _TBD_ | stronger; different family if possible |
+| Target agent | _TBD_ | us-east-2 | cheap, tool-use capable |
+| LLM judge | _TBD_ | us-east-2 | stronger; different family if possible |
 
 ### Cost and safety guardrails
 
@@ -208,7 +209,7 @@ agentgauge validate-judge                                 # agreement + Cohen's 
 | `agentgauge compare <run_a> <run_b>` | deltas and flipped scenarios |
 | `agentgauge list-runs` | stored runs |
 | `agentgauge validate-judge` / `export-labels` / `import-labels` | judge vs human agreement |
-| `agentgauge list-models --region R` | Bedrock models and inference profiles |
+| `agentgauge list-models [--region R] [--profile P]` | Bedrock models and inference profiles |
 | `agentgauge dashboard` | Streamlit UI |
 | `agentgauge demo` | offline v1 + v2 mock runs and a comparison |
 
@@ -238,4 +239,4 @@ ruff check src tests validation
 pytest
 ```
 
-CI (`.github/workflows/ci.yml`) runs ruff and pytest on Python 3.11 and 3.12 with no AWS credentials. Design decisions and plan clarifications are recorded in [docs/DECISIONS.md](docs/DECISIONS.md), and daily progress in [docs/STATUS.md](docs/STATUS.md).
+CI (`.github/workflows/ci.yml`) runs ruff and pytest on Python 3.11 and 3.12 with no AWS credentials. Design decisions and plan clarifications are recorded in [docs/DECISIONS.md](docs/DECISIONS.md), and daily progress in [docs/STATUS.md](docs/STATUS.md). Instructions for AI coding agents (project guardrails plus AWS's rules for the new AWS experience) live in [CLAUDE.md](CLAUDE.md).

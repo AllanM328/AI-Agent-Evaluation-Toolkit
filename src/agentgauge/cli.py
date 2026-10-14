@@ -73,12 +73,12 @@ def _progress(i: int, n: int, sc: Scenario, r: ScenarioResult) -> None:
                   f"steps={len(r.trace.model_steps())} cost={fmt(r.trace.total_cost_usd, 'usd')}{extra}")
 
 
-def _has_aws_credentials() -> bool:
+def _has_aws_credentials(profile: str | None = None) -> bool:
     try:
-        import boto3
+        from agentgauge.model_client import aws_session
 
-        return boto3.Session().get_credentials() is not None
-    except Exception:
+        return aws_session(profile).get_credentials() is not None
+    except Exception:  # missing profile, expired login, missing awscrt, ...
         return False
 
 
@@ -135,8 +135,10 @@ def run(
         if use_judge and not cfg.models.judge_model_id:
             raise _fail("No judge model configured. Set models.judge_model_id / AGENTGAUGE_JUDGE_MODEL_ID, "
                         "or pass --no-judge.")
-        if not _has_aws_credentials():
-            raise _fail("No AWS credentials found. Run `aws configure` (or SSO login), or use --mock.")
+        if not _has_aws_credentials(cfg.models.profile):
+            who = f"profile '{cfg.models.profile}'" if cfg.models.profile else "the default credential chain"
+            raise _fail(f"No usable AWS credentials for {who}. Sign in with `aws login --profile <name>` and set "
+                        "AGENTGAUGE_PROFILE (or models.profile), or use --mock.")
         est = estimate_cost(cfg, agent, scenarios, use_judge=use_judge)
         _print_estimate(est)
         if est.expected_usd is None and not allow_unpriced:
@@ -367,6 +369,7 @@ def import_labels_cmd(
 @app.command("list-models")
 def list_models(
     region: str = typer.Option(None, "--region", help="AWS region (default: config / AWS env)."),
+    profile: str = typer.Option(None, "--profile", help="AWS CLI profile (default: config / AGENTGAUGE_PROFILE)."),
     contains: str = typer.Option(None, "--contains", help="Filter by substring (e.g. nova, claude, llama)."),
     mock: bool = MockOpt,
     config: Path = ConfigOpt,
@@ -379,9 +382,10 @@ def list_models(
     from agentgauge.model_client import list_bedrock_models
 
     try:
-        rows = list_bedrock_models(region or cfg.models.region)
+        rows = list_bedrock_models(region or cfg.models.region, profile or cfg.models.profile)
     except Exception as exc:
-        raise _fail(f"Could not list models ({type(exc).__name__}: {exc}). Check AWS credentials and region.") from exc
+        raise _fail(f"Could not list models ({type(exc).__name__}: {exc}). Check the AWS profile, sign-in and Region."
+        ) from exc
     t = Table("id", "kind", "provider", "name", "inference")
     for r in rows:
         if contains and contains.lower() not in (r["id"] + r["name"]).lower():

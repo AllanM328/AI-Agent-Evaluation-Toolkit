@@ -16,6 +16,7 @@ class ModelsConfig(BaseModel):
     target_model_id: str | None = None
     judge_model_id: str | None = None
     region: str | None = None
+    profile: str | None = None  # AWS CLI profile (e.g. from `aws login --profile agentgauge`)
 
 
 class BudgetConfig(BaseModel):
@@ -128,6 +129,8 @@ def load_config(path: str | Path | None = None) -> Config:
         cfg.models.region = env["AGENTGAUGE_REGION"]
     elif not cfg.models.region:
         cfg.models.region = env.get("AWS_REGION") or env.get("AWS_DEFAULT_REGION")
+    if env.get("AGENTGAUGE_PROFILE"):
+        cfg.models.profile = env["AGENTGAUGE_PROFILE"]
     if env.get("AGENTGAUGE_DB"):
         cfg.paths.db = env["AGENTGAUGE_DB"]
     return cfg

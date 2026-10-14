@@ -50,3 +50,62 @@ def test_mock_client_fills_usage_deterministically():
     msgs = [{"role": "user", "content": [{"text": "same input"}]}]
     ra, rb = a.converse("s", msgs), b.converse("s", msgs)
     assert ra.input_tokens == rb.input_tokens > 0 and ra.latency_ms == rb.latency_ms > 0
+
+
+def _write_aws_files(tmp_path, monkeypatch):
+    """Isolated AWS config with one static-key profile (offline; nothing is signed or sent)."""
+    cfg = tmp_path / "aws_config"
+    cfg.write_text("[profile agentgauge]\nregion = us-east-2\n"
+                   "aws_access_key_id = PROFILEKEY\naws_secret_access_key = profilesecret\n")
+    monkeypatch.setenv("AWS_CONFIG_FILE", str(cfg))
+    monkeypatch.setenv("AWS_SHARED_CREDENTIALS_FILE", str(tmp_path / "no_credentials"))
+
+
+def test_named_profile_beats_env_key_placeholders(tmp_path, monkeypatch):
+    from agentgauge.model_client import aws_session
+
+    _write_aws_files(tmp_path, monkeypatch)
+    monkeypatch.setenv("AWS_ACCESS_KEY_ID", "proxy-injected")
+    monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "proxy-injected")
+    assert aws_session().get_credentials().access_key == "proxy-injected"  # default chain: env wins
+    assert aws_session("agentgauge").get_credentials().access_key == "PROFILEKEY"  # explicit profile wins
+
+
+def test_bedrock_client_and_list_models_use_profile(monkeypatch):
+    import boto3
+
+    from agentgauge import model_client
+
+    seen = []
+
+    class FakeSession:
+        def __init__(self, profile_name=None):
+            seen.append(profile_name)
+
+        def client(self, service, **kwargs):
+            seen.append((service, kwargs.get("region_name")))
+            return StubRuntime({})
+
+    monkeypatch.setattr(boto3, "Session", FakeSession)
+    BedrockClient("m", region="us-east-2", profile="agentgauge")
+    assert seen == ["agentgauge", ("bedrock-runtime", "us-east-2")]
+    seen.clear()
+    model_client.aws_session(None)
+    assert seen == [None]
+
+
+def test_credentials_check_handles_missing_profile(tmp_path, monkeypatch):
+    from agentgauge.cli import _has_aws_credentials
+
+    _write_aws_files(tmp_path, monkeypatch)
+    assert _has_aws_credentials("agentgauge") is True
+    assert _has_aws_credentials("does-not-exist") is False
+
+
+def test_profile_from_env(monkeypatch):
+    from agentgauge.config import load_config
+
+    from conftest import REPO_ROOT
+
+    monkeypatch.setenv("AGENTGAUGE_PROFILE", "agentgauge")
+    assert load_config(REPO_ROOT / "config.yaml").models.profile == "agentgauge"

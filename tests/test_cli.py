@@ -65,16 +65,16 @@ def test_live_run_refuses_without_aws_credentials(cli_env, monkeypatch):
     db, _ = cli_env
     monkeypatch.setenv("AGENTGAUGE_TARGET_MODEL_ID", "some-model")
     monkeypatch.setenv("AGENTGAUGE_JUDGE_MODEL_ID", "some-judge")
-    monkeypatch.setattr("agentgauge.cli._has_aws_credentials", lambda: False)
+    monkeypatch.setattr("agentgauge.cli._has_aws_credentials", lambda profile=None: False)
     r = invoke("run", "--agent", "sample_v1", *db)
-    assert r.exit_code == 1 and "No AWS credentials" in r.output
+    assert r.exit_code == 1 and "No usable AWS credentials" in r.output and "aws login" in r.output
 
 
 def test_live_run_stops_when_unpriced_or_over_budget(cli_env, monkeypatch, tmp_path):
     db, _ = cli_env
     monkeypatch.setenv("AGENTGAUGE_TARGET_MODEL_ID", "unpriced-model")
     monkeypatch.setenv("AGENTGAUGE_JUDGE_MODEL_ID", "unpriced-judge")
-    monkeypatch.setattr("agentgauge.cli._has_aws_credentials", lambda: True)
+    monkeypatch.setattr("agentgauge.cli._has_aws_credentials", lambda profile=None: True)
     r = invoke("run", "--agent", "sample_v1", *db)
     assert r.exit_code == 1 and "missing from pricing.yaml" in r.output and "Cost estimate" in r.output
 

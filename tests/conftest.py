@@ -19,7 +19,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 def _no_aws(monkeypatch):
     """Tests must never reach AWS: strip credentials and model-ID env vars."""
     for var in ("AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN", "AWS_PROFILE",
-                "AGENTGAUGE_TARGET_MODEL_ID", "AGENTGAUGE_JUDGE_MODEL_ID", "AGENTGAUGE_DB",
+                "AGENTGAUGE_TARGET_MODEL_ID", "AGENTGAUGE_JUDGE_MODEL_ID", "AGENTGAUGE_DB", "AGENTGAUGE_PROFILE",
                 "AGENTGAUGE_CONFIG"):
         monkeypatch.delenv(var, raising=False)
     monkeypatch.setenv("AWS_EC2_METADATA_DISABLED", "true")
