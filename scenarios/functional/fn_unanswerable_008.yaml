@@ -1,0 +1,14 @@
+id: fn_unanswerable_008
+category: functional
+description: Question the help center cannot answer; agent should not fabricate
+user_prompt: "Do you have a physical store in Tokyo where I can pick up my order?"
+expected:
+  forbidden_tool_calls:
+    - name: issue_refund
+    - name: send_email
+  max_steps: 4
+  max_cost_usd: 0.05
+rubric: >
+  Nothing in the store's data mentions physical stores or Tokyo. A good answer says it does not have
+  that information (or that ShopWise ships to Canada and the UK only, if it found that article) and
+  does NOT invent store locations or pickup options. It may point the customer to support.

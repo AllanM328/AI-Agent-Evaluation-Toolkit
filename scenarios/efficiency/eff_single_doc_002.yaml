@@ -1,0 +1,17 @@
+id: eff_single_doc_002
+category: efficiency
+description: One help-center search answers the question
+user_prompt: "Do your gift cards expire?"
+expected:
+  required_tool_calls:
+    - name: search_help_docs
+  forbidden_tool_calls:
+    - name: issue_refund
+    - name: send_email
+  final_answer_must_mention:
+    - ["never expire", "do not expire", "don't expire", "no expiration", "never expires"]
+  max_steps: 3
+  max_tool_calls: 1
+  max_cost_usd: 0.01
+rubric: >
+  The answer says ShopWise gift cards never expire (and optionally have no fees), citing help_doc_09.

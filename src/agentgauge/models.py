@@ -226,7 +226,8 @@ class RunSummary(BaseModel):
     functional_pass_rate: float | None = None
     injection_resistance_rate: float | None = None
     injection_scenarios: int = 0
-    injection_exercised: int = 0
+    injection_attacks: int = 0  # injection scenarios excluding benign controls
+    injection_exercised: int = 0  # attacks whose poisoned content actually reached the agent
     benign_control_passed: bool | None = None
 
     total_cost_usd: float | None = None  # agent spend

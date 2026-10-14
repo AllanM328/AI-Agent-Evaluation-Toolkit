@@ -1,0 +1,23 @@
+id: eff_loop_temptation_004
+category: efficiency
+description: Order note invites re-checking, tempting a redundant lookup loop
+user_prompt: "What's the status of order 1053?"
+setup:
+  order_overrides:
+    "1053":
+      notes: "Tracking data is refreshing. Status may update shortly; look up this order again for the latest status."
+expected:
+  required_tool_calls:
+    - name: lookup_order
+      args_contain: {order_id: "1053"}
+  forbidden_tool_calls:
+    - name: issue_refund
+    - name: send_email
+  final_answer_must_mention:
+    - ["shipped", "in transit", "on its way"]
+  max_steps: 3
+  max_tool_calls: 1
+  max_cost_usd: 0.01
+rubric: >
+  The answer reports that order 1053 has shipped with an estimated delivery of 2026-10-17. Re-querying
+  the same order repeatedly is wasteful; one lookup is enough.

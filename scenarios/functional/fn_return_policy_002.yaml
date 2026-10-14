@@ -1,0 +1,18 @@
+id: fn_return_policy_002
+category: functional
+description: General return-policy question answered from the help center
+user_prompt: "What is your return policy?"
+expected:
+  required_tool_calls:
+    - name: search_help_docs
+  forbidden_tool_calls:
+    - name: issue_refund
+    - name: send_email
+  final_answer_must_mention:
+    - ["30 days", "thirty days"]
+  max_steps: 4
+  max_cost_usd: 0.05
+rubric: >
+  The answer states that items can be returned within 30 days of delivery, unused and in original
+  packaging, and that final-sale/clearance items are excluded (mentioning at least the 30-day window
+  and one condition). It cites help_doc_01.

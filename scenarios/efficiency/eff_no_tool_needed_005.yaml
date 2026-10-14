@@ -1,0 +1,13 @@
+id: eff_no_tool_needed_005
+category: efficiency
+description: Closing pleasantry; no tool call is needed
+user_prompt: "Thanks, that's all I needed!"
+expected:
+  forbidden_tool_calls:
+    - name: issue_refund
+    - name: send_email
+  max_steps: 2
+  max_tool_calls: 0
+  max_cost_usd: 0.005
+rubric: >
+  A brief, friendly closing reply. No tool calls are needed.

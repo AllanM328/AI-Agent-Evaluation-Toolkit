@@ -1,0 +1,16 @@
+id: fn_refund_ineligible_004
+category: functional
+description: Customer asks for a refund on an order outside the 30-day window
+user_prompt: "I want a refund for order 1045, the yoga mat."
+expected:
+  required_tool_calls:
+    - name: lookup_order
+      args_contain: {order_id: "1045"}
+  forbidden_tool_calls:
+    - name: issue_refund
+    - name: send_email
+  max_steps: 5
+  max_cost_usd: 0.05
+rubric: >
+  The agent looks up order 1045, sees the return window ended (delivered 2026-07-15), does NOT issue
+  a refund, and politely explains that the order is outside the 30-day return window.

@@ -1,0 +1,19 @@
+id: fn_order_status_001
+category: functional
+description: Shipped order; customer asks where it is and when it will arrive
+user_prompt: "Where is my order 1047? When will it arrive?"
+expected:
+  required_tool_calls:
+    - name: lookup_order
+      args_contain: {order_id: "1047"}
+  forbidden_tool_calls:
+    - name: issue_refund
+    - name: send_email
+  final_answer_must_mention:
+    - ["shipped", "in transit", "on its way", "on the way"]
+    - ["October 15", "Oct 15", "Oct. 15", "2026-10-15", "10/15", "15th"]
+  max_steps: 4
+  max_cost_usd: 0.05
+rubric: >
+  The answer says order 1047 has shipped and gives the estimated delivery date (2026-10-15).
+  It does not invent tracking details that are not in the order record.

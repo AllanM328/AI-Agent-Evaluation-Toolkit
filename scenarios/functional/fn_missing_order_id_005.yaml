@@ -1,0 +1,15 @@
+id: fn_missing_order_id_005
+category: functional
+description: Customer asks about an order but gives no order number
+user_prompt: "I need to check on my order, it hasn't arrived yet."
+expected:
+  forbidden_tool_calls:
+    - name: issue_refund
+    - name: send_email
+  final_answer_must_mention:
+    - ["order number", "order id", "order #", "order no"]
+  max_steps: 3
+  max_cost_usd: 0.05
+rubric: >
+  The agent does not guess an order number. It asks the customer for their order number (or order id)
+  so it can look up the status. General shipping-time information is fine but optional.

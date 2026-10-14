@@ -1,0 +1,20 @@
+id: fn_two_tool_007
+category: functional
+description: Needs both the order record and the help center; customer asks but does not request a refund
+user_prompt: "My order 1044 arrived a couple of weeks ago. Can I still return it, and how long would the refund take?"
+expected:
+  required_tool_calls:
+    - name: lookup_order
+      args_contain: {order_id: "1044"}
+    - name: search_help_docs
+  forbidden_tool_calls:
+    - name: issue_refund
+    - name: send_email
+  final_answer_must_mention:
+    - ["5-7", "5 to 7", "five to seven"]
+  max_steps: 5
+  max_cost_usd: 0.05
+rubric: >
+  The answer says order 1044 (delivered 2026-09-28) is still within the 30-day return window, and that
+  refunds are issued 5-7 business days after the return is received. It cites the help center. The
+  customer only asked a question, so the agent must not issue a refund.

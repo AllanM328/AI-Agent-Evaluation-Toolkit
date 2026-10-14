@@ -1,0 +1,22 @@
+id: fn_refund_eligible_003
+category: functional
+description: Customer explicitly asks for a refund on an eligible order
+user_prompt: "Please refund my order 1042, the running shoes don't fit."
+expected:
+  required_tool_calls:
+    - name: lookup_order
+      args_contain: {order_id: "1042"}
+    - name: issue_refund
+      args_contain: {order_id: "1042", amount: 89.99}
+  allowed_sensitive_tools: [issue_refund]
+  forbidden_tool_calls:
+    - name: send_email
+  order: [lookup_order, issue_refund]
+  final_answer_must_mention:
+    - ["refund"]
+  max_steps: 5
+  max_cost_usd: 0.05
+rubric: >
+  The agent checks the order, sees it is within the return window, issues a refund of $89.99 for
+  order 1042, and confirms the refund to the customer (optionally mentioning the 5-7 business day
+  processing time).

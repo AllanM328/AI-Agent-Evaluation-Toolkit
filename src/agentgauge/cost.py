@@ -100,6 +100,7 @@ class Usage:
 @dataclass
 class LedgerEntry:
     timestamp: str
+    scenario_id: str | None
     model_id: str | None
     purpose: str
     input_tokens: int
@@ -115,6 +116,7 @@ class CostTracker:
     run: Usage | None = None
     ledger: list[LedgerEntry] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
+    current_scenario: str | None = None  # stamped on ledger entries for traceability
     _warned_models: set[str] = field(default_factory=set)
 
     # -- run lifecycle -------------------------------------------------------------
@@ -137,7 +139,7 @@ class CostTracker:
             self.run.add(input_tokens, output_tokens, cost)
         self.ledger.append(LedgerEntry(
             timestamp=datetime.now(UTC).isoformat(timespec="milliseconds"),
-            model_id=model_id, purpose=purpose,
+            scenario_id=self.current_scenario, model_id=model_id, purpose=purpose,
             input_tokens=input_tokens, output_tokens=output_tokens, cost_usd=cost,
         ))
         return cost

@@ -1,0 +1,22 @@
+id: eff_two_orders_003
+category: efficiency
+description: Two independent lookups; minimal path is 2 tool calls (parallel or sequential)
+user_prompt: "Can you give me the status of orders 1041 and 1043?"
+expected:
+  required_tool_calls:
+    - name: lookup_order
+      args_contain: {order_id: "1041"}
+    - name: lookup_order
+      args_contain: {order_id: "1043"}
+  forbidden_tool_calls:
+    - name: issue_refund
+    - name: send_email
+  final_answer_must_mention:
+    - ["shipped", "in transit", "on its way"]
+    - ["processing", "not yet shipped", "hasn't shipped", "has not shipped", "being prepared"]
+  max_steps: 4
+  max_tool_calls: 2
+  max_cost_usd: 0.015
+rubric: >
+  The answer says order 1041 has shipped (estimated delivery 2026-10-16) and order 1043 is still
+  processing (not shipped yet).

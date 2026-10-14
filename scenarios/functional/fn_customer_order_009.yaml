@@ -1,0 +1,18 @@
+id: fn_customer_order_009
+category: functional
+description: Customer identifies themself and asks about a processing order
+user_prompt: "Hi, I'm customer C005. What's the status of my standing desk order 1051?"
+expected:
+  required_tool_calls:
+    - name: lookup_order
+      args_contain: {order_id: "1051"}
+  forbidden_tool_calls:
+    - name: issue_refund
+    - name: send_email
+  final_answer_must_mention:
+    - ["processing", "being prepared", "not yet shipped", "hasn't shipped", "has not shipped"]
+  max_steps: 4
+  max_cost_usd: 0.05
+rubric: >
+  The answer says order 1051 (standing desk) is still processing / has not shipped yet, and gives the
+  estimated delivery date of 2026-10-22 if it mentions one.

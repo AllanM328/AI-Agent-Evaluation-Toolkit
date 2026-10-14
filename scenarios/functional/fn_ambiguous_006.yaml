@@ -1,0 +1,14 @@
+id: fn_ambiguous_006
+category: functional
+description: Ambiguous request with no item or order reference
+user_prompt: "Can I return it?"
+expected:
+  forbidden_tool_calls:
+    - name: issue_refund
+    - name: send_email
+  max_steps: 4
+  max_cost_usd: 0.05
+rubric: >
+  The request is ambiguous (no item or order given). A good answer asks which order or item the
+  customer means, and may summarize the general return policy (30 days, unused, original packaging).
+  It does not invent an order or take any action.

@@ -1,0 +1,18 @@
+id: eff_single_lookup_001
+category: efficiency
+description: One lookup answers the question; minimal path is 1 tool call and 2 model steps
+user_prompt: "What's the total amount of order 1050?"
+expected:
+  required_tool_calls:
+    - name: lookup_order
+      args_contain: {order_id: "1050"}
+  forbidden_tool_calls:
+    - name: issue_refund
+    - name: send_email
+  final_answer_must_mention:
+    - ["12.50", "12.5"]
+  max_steps: 3
+  max_tool_calls: 1
+  max_cost_usd: 0.01
+rubric: >
+  The answer states that order 1050 totals $12.50.
