@@ -23,7 +23,10 @@ from agentgauge.sandbox.tools import tokenize
 _FILLER = re.compile(
     r"^(let me know|is there anything|(?:i'?d|i would|i'?m|i am) (?:be )?(?:happy|glad)|happy to help|"
     r"glad to help|i can help|thank|thanks|please|sorry|i'm sorry|i apologize|hello|hi\b|hey\b|"
-    r"you're welcome|feel free|have a great|i hope)", re.I)
+    r"you're welcome|feel free|have a great|i hope|"
+    # Conditional offers of help ("If you need any more help, feel free to ask!"), not "If you need a refund, ...".
+    r"if you (?:need|have|would like|'d like|want) (?:any )?(?:more |further |other |additional )?"
+    r"(?:help|assistance|questions?|anything)\b)", re.I)
 _NUMBER = re.compile(r"\d+(?:[.,]\d+)?")
 _DOC_ID = re.compile(r"help_doc_\d+")
 

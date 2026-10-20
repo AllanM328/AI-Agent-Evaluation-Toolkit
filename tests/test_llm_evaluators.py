@@ -109,6 +109,13 @@ def test_claim_extraction_skips_filler_and_questions():
     assert claims == ["Your order 1047 shipped on Monday."]
 
 
+def test_claim_extraction_skips_conditional_offers_of_help():
+    # From the first live run: this closing line was counted as an unsupported claim.
+    claims = extract_claims("Your order 1047 has shipped. If you need any more help, feel free to ask! "
+                            "If you have questions, just reply. If you need a refund, it must be within 30 days.")
+    assert claims == ["Your order 1047 has shipped.", "If you need a refund, it must be within 30 days."]
+
+
 def test_groundedness_llm_mode(config):
     config.groundedness.mode = "llm"
     sc = scenario()
