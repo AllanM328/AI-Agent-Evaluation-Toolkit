@@ -3,6 +3,9 @@
 # Environment variables override the values marked "env:".
 
 models:
+  provider: openrouter       # env: AGENTGAUGE_PROVIDER. bedrock | openrouter. OpenRouter reads its key from the
+                             # OPENROUTER_API_KEY env var only; never put the key in this file.
+                             # region / profile below apply to bedrock only.
   # Never hard-code model IDs in code. Set them here or via environment variables.
   # Discover what your account/region can use with:  agentgauge list-models --region <region>
   target_model_id: null      # env: AGENTGAUGE_TARGET_MODEL_ID  (cheap, tool-use capable model)

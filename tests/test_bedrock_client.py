@@ -139,6 +139,7 @@ def test_runner_clients_and_list_models_use_configured_profile(monkeypatch):
                                   "list_inference_profiles": lambda self, **k: {}})()
 
     monkeypatch.setattr(boto3, "Session", FakeSession)
+    monkeypatch.setenv("AGENTGAUGE_PROVIDER", "bedrock")
     monkeypatch.setenv("AGENTGAUGE_PROFILE", "agentgauge")
     monkeypatch.setenv("AGENTGAUGE_TARGET_MODEL_ID", "t")
     monkeypatch.setenv("AGENTGAUGE_JUDGE_MODEL_ID", "j")

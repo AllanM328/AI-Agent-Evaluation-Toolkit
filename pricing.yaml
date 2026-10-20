@@ -1,8 +1,8 @@
 # USD prices per 1,000 tokens, keyed by the exact model ID / inference profile ID used in config.yaml.
 #
 # HUMANS: fill these in from the current Amazon Bedrock pricing page
-#   https://aws.amazon.com/bedrock/pricing/
-# Bedrock usually lists prices per 1M tokens: divide by 1000 to get the per-1K values used here.
+#   https://aws.amazon.com/bedrock/pricing/  (or, for OpenRouter models, `agentgauge list-models`)
+# Both usually list prices per 1M tokens: divide by 1000 to get the per-1K values used here.
 #
 # If a model has no entry, AgentGauge logs a loud warning, reports tokens only, and refuses
 # to start live runs unless you pass --allow-unpriced (USD budget caps can't be enforced).
@@ -18,6 +18,24 @@ models:
   # "your-judge-model-id":
   #   input_per_1k: 0.0
   #   output_per_1k: 0.0
+
+  # Real prices, us-east-2 on-demand standard tier, from the AWS Price List API on 2026-10-20.
+  # Re-check https://aws.amazon.com/bedrock/pricing/ before relying on them.
+  "amazon.nova-lite-v1:0":     # target agent (ON_DEMAND in us-east-2)
+    input_per_1k: 0.00006      # $0.06 / 1M
+    output_per_1k: 0.00024     # $0.24 / 1M
+  "us.amazon.nova-pro-v1:0":   # LLM judge (US cross-Region inference profile)
+    input_per_1k: 0.0008       # $0.80 / 1M
+    output_per_1k: 0.0032      # $3.20 / 1M
+
+  # OpenRouter prices, from the public catalog (https://openrouter.ai/api/v1/models) on 2026-10-20.
+  # Re-check with `agentgauge list-models` (provider: openrouter) before relying on them.
+  "openai/gpt-4.1-mini":          # target agent
+    input_per_1k: 0.0004          # $0.40 / 1M
+    output_per_1k: 0.0016         # $1.60 / 1M
+  "anthropic/claude-haiku-5.5":   # LLM judge (different family from the target)
+    input_per_1k: 0.0001          # $0.10 / 1M
+    output_per_1k: 0.0005         # $0.50 / 1M
 
   # ILLUSTRATIVE ONLY. Fake rates for the offline mock model so the cost and budget code paths
   # are exercised without AWS. Mock runs are labeled "mock" everywhere and are not real costs.

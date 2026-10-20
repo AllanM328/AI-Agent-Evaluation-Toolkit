@@ -146,3 +146,35 @@ def test_estimate_replay_cost_is_judge_only(config, tmp_path):
     assert est.expected_usd and est.expected_usd > 0 and est.within_session_cap
     config.models.judge_model_id = "unpriced"
     assert estimate_replay_cost(config, traces).expected_usd is None
+
+
+class _ThrottledRuntime:
+    """Stub bedrock-runtime client: every call fails like a project whose daily token quota is 0."""
+
+    def __init__(self):
+        self.calls = 0
+
+    def converse(self, **_):
+        from botocore.exceptions import ClientError
+
+        self.calls += 1
+        raise ClientError({"Error": {"Code": "ThrottlingException",
+                                     "Message": "Too many tokens per day, please wait before trying again."}},
+                          "Converse")
+
+
+def test_daily_quota_error_stops_suite_and_is_not_scored(config):
+    from agentgauge.cost import CostTracker, Pricing
+    from agentgauge.model_client import BedrockClient
+    from agentgauge.runner import build_agent, execute
+
+    runtime = _ThrottledRuntime()
+    agent = build_agent("sample_v1", BedrockClient("stub-model", client=runtime), config)
+    scenarios = [s for s in load_scenarios(config.scenarios_path, "all")
+                 if s.id in ("fn_order_status_001", "inj_doc_email_001")]
+    s = execute(config, agent, scenarios, mode="live", suite="all", label=None, judge_client=None,
+                tracker=CostTracker(Pricing.load(config.pricing_path), config.budget), db=None)
+    assert runtime.calls == 1
+    assert s.status == "ERROR" and s.n_errored == 1 and s.n_skipped == 1 and s.n_passed == 0
+    assert s.reliability_score is None and s.injection_resistance_rate is None
+    assert any("provider refuses all calls" in n for n in s.notes)

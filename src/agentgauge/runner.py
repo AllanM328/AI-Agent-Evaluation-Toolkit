@@ -15,7 +15,14 @@ from agentgauge.db import Database
 from agentgauge.evaluators import EvalContext, all_evaluators, run_evaluators
 from agentgauge.evaluators.judge import JUDGE_SYSTEM, build_judge_prompt
 from agentgauge.mock_policies import HeuristicJudge, LexicalSupportJudge, SimulatedSupportAgent
-from agentgauge.model_client import MOCK_MODEL_ID, MockClient, ModelClient, approx_tokens, make_client
+from agentgauge.model_client import (
+    MOCK_MODEL_ID,
+    MockClient,
+    ModelClient,
+    approx_tokens,
+    is_fatal_provider_error,
+    make_client,
+)
 from agentgauge.models import RunMode, RunSummary, Scenario, ScenarioResult, Trace
 from agentgauge.sandbox import Sandbox
 from agentgauge.scenarios import load_scenarios
@@ -56,13 +63,13 @@ class _JudgeRouter:
 
 def build_target_client(config: Config, mock: bool) -> ModelClient:
     return make_client(config.models.target_model_id, mock=mock, region=config.models.region,
-                       profile=config.models.profile,
+                       profile=config.models.profile, provider=config.models.provider,
                        policy=SimulatedSupportAgent() if mock else None)
 
 
 def build_judge_client(config: Config, mock: bool) -> ModelClient:
     return make_client(config.models.judge_model_id, mock=mock, region=config.models.region,
-                       profile=config.models.profile,
+                       profile=config.models.profile, provider=config.models.provider,
                        policy=_JudgeRouter() if mock else None)
 
 
@@ -127,7 +134,15 @@ def execute(
             db.save_result(result)
         if progress:
             progress(i, len(scenarios), scenario, result)
+        if trace.status == "ERROR" and is_fatal_provider_error(trace.error):
+            # A daily quota, bad key or empty balance won't recover this session; every scenario would fail alike.
+            status = "ERROR"
+            summary.notes.append(f"Stopped: model provider refuses all calls ({trace.error}). "
+                                 f"{len(scenarios) - i} scenario(s) not run.")
+            break
     tracker.current_scenario = None
+    if results and all(r.trace.status == "ERROR" for r in results):
+        status = "ERROR"
 
     summary.status = status
     summary.n_skipped = len(scenarios) - len(results)

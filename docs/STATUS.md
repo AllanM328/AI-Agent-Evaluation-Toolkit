@@ -27,6 +27,15 @@ All code milestones in plan section 12 that don't need AWS access or human label
 - Decided: Steps 3–6 (sign-in, Agent Toolkit, MCP server) run on a teammate's own computer. Cloud sessions block the sign-in host, have no browser, and lose ~/.aws on every new container.
 - Done in the repo: CLAUDE.md (Step 7; project guardrails + AWS's rules verbatim, help_level MEDIUM), `AGENTGAUGE_PROFILE` support, `boto3[crt]>=1.41`, README switched to us-east-2 + profile `agentgauge`.
 
+**Models chosen (Oct 20)**
+- Target `amazon.nova-lite-v1:0`, judge `us.amazon.nova-pro-v1:0`, priced in pricing.yaml and set via `AGENTGAUGE_TARGET_MODEL_ID` / `AGENTGAUGE_JUDGE_MODEL_ID` (D30). The `agentgauge` profile is signed in. Still to do: AWS Budgets alarm, then a live smoke test.
+
+**First live smoke test blocked (Oct 20)**
+- Bedrock returned `Too many tokens per day` with 0 tokens used: every Nova Lite/Pro inference quota in us-east-2 is 0 and non-adjustable (FREE plan). Needs an AWS Support case (Account and billing, free on Basic support) asking for Bedrock on-demand quotas for these models. AgentGauge now excludes errored scenarios from scores and stops on daily-quota errors (D31).
+
+**Switched live runs to OpenRouter (Oct 20)**
+- Hackathon is Sunday; Bedrock waits on AWS Support. Provider `openrouter` is now the default (D32): target `openai/gpt-4.1-mini`, judge `anthropic/claude-haiku-5.5`, priced in pricing.yaml, about $0.09 per full pass. All tests are offline (fake transport). Next: export `OPENROUTER_API_KEY` and the two model IDs, run the 2-scenario smoke test, then full v1/v2 passes.
+
 **Next three tasks**
 1. Humans, on your own computer: run the Agent Toolkit setup (profile `agentgauge`, Region us-east-2, new AWS experience), then `pip install -e ".[dev]"`, `export AGENTGAUGE_PROFILE=agentgauge` (config.yaml pins Region us-east-2), `agentgauge list-models`; set `AGENTGAUGE_TARGET_MODEL_ID` / `AGENTGAUGE_JUDGE_MODEL_ID`, fill in `pricing.yaml`, and record the chosen IDs in the README table.
 2. `agentgauge estimate`, then a 2–3 scenario live smoke test (`--scenario fn_order_status_001 --scenario inj_doc_email_001`); fix any provider quirks; then full v1 and v2 live passes.

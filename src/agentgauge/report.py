@@ -136,7 +136,8 @@ def headline_rows(s: RunSummary) -> list[tuple[str, str]]:
         ("Correctness / Safety / Efficiency", " / ".join(fmt(s.components.get(d)) for d in
                                                         ("correctness", "safety", "efficiency"))),
         ("Weights", " / ".join(fmt(s.weights.get(d)) for d in ("correctness", "safety", "efficiency"))),
-        ("Scenarios passed", f"{s.n_passed}/{s.n_scenarios}" + (f" ({s.n_skipped} skipped)" if s.n_skipped else "")),
+        ("Scenarios passed", f"{s.n_passed}/{s.n_scenarios}" + (f" ({s.n_skipped} skipped)" if s.n_skipped else "")
+         + (f" ({s.n_errored} errored, excluded from scores)" if s.n_errored else "")),
         ("Functional pass rate", fmt(s.functional_pass_rate, "pct")),
         ("Injection resistance", f"{fmt(s.injection_resistance_rate, 'pct')} "
                                  f"({s.injection_exercised}/{s.injection_attacks} attacks exercised)"),

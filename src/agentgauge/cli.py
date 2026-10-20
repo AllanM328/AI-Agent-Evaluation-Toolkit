@@ -99,10 +99,31 @@ def _aws_credentials_error(profile: str | None = None) -> str | None:
         return f"{type(exc).__name__}: {exc}"
 
 
+def _provider_name(cfg: Config) -> str:
+    return {"bedrock": "Bedrock", "openrouter": "OpenRouter"}[cfg.models.provider]
+
+
+def _check_openrouter_key() -> None:
+    """Validate OPENROUTER_API_KEY with the free GET /key call and show the remaining credit."""
+    from agentgauge.model_client import OPENROUTER_KEY_ENV, openrouter_key_info
+
+    if not os.environ.get(OPENROUTER_KEY_ENV):
+        raise _fail(f"{OPENROUTER_KEY_ENV} is not set. Export it in your shell (never put it in config.yaml), "
+                    "or use --mock.")
+    try:
+        info = openrouter_key_info()
+    except Exception as exc:
+        raise _fail(f"OpenRouter rejected the key or is unreachable ({type(exc).__name__}: {exc}).") from exc
+    remaining = info.get("limit_remaining")
+    console.print(f"OpenRouter key OK · used so far {fmt(info.get('usage'), 'usd')} · "
+                  f"remaining {fmt(remaining, 'usd') if remaining is not None else 'no key limit set'}")
+
+
 def _live_gate(cfg: Config, est, *, allow_unpriced: bool, yes: bool, prompt: str) -> None:
-    """Shared guardrails before any live Bedrock call: credentials, printed estimate, pricing, cap, confirm."""
-    problem = _aws_credentials_error(cfg.models.profile)
-    if problem:
+    """Shared guardrails before any live model call: credentials, printed estimate, pricing, cap, confirm."""
+    if cfg.models.provider == "openrouter":
+        _check_openrouter_key()
+    elif problem := _aws_credentials_error(cfg.models.profile):
         who = f"profile '{cfg.models.profile}'" if cfg.models.profile else "the default credential chain"
         raise _fail(f"No usable AWS credentials for {who} ({problem}). Sign in with `aws login --profile <name>` "
                     "and set AGENTGAUGE_PROFILE (or models.profile). If you are already signed in, re-install "
@@ -174,7 +195,7 @@ def run(
                         "or pass --no-judge.")
         est = estimate_cost(cfg, agent, scenarios, use_judge=use_judge)
         _live_gate(cfg, est, allow_unpriced=allow_unpriced, yes=yes,
-                   prompt=f"Run {len(scenarios)} scenario(s) live on Bedrock?")
+                   prompt=f"Run {len(scenarios)} scenario(s) live on {_provider_name(cfg)}?")
 
     tracker = CostTracker(Pricing.load(cfg.pricing_path), cfg.budget)
     console.print(f"Running {len(scenarios)} scenario(s) · agent={agent} · mode={'mock' if mock else 'live'} · "
@@ -226,7 +247,7 @@ def replay(
 ) -> None:
     """Score externally produced traces without running any agent ("bring your own agent").
 
-    Without --mock or --no-judge, the LLM judge runs live on Bedrock and is gated like `run`.
+    Without --mock or --no-judge, the LLM judge runs live (Bedrock or OpenRouter) and is gated like `run`.
     """
     from agentgauge.adapters import load_traces
 
@@ -244,7 +265,7 @@ def replay(
         if not cfg.models.judge_model_id:
             raise _fail("No judge model configured: pass --mock (offline judge), --no-judge, or configure one.")
         _live_gate(cfg, estimate_replay_cost(cfg, traces), allow_unpriced=allow_unpriced, yes=yes,
-                   prompt=f"Judge {len(traces)} trace(s) live on Bedrock?")
+                   prompt=f"Judge {len(traces)} trace(s) live on {_provider_name(cfg)}?")
     summary = run_replay(cfg, traces, label=label, mock=mock, use_judge=use_judge, db=database, progress=_progress)
     _print_summary(summary)
     console.print(f"Stored as [b]{summary.run_id}[/b].")
@@ -409,18 +430,22 @@ def list_models(
     mock: bool = MockOpt,
     config: Path = ConfigOpt,
 ) -> None:
-    """List Bedrock text models and inference profiles available to your account."""
+    """List models: Bedrock text models and inference profiles, or OpenRouter's tool-capable models."""
     cfg = load_config(config)
     if mock:
         console.print("Mock mode: the offline model id is 'mock-model'. No AWS call made.")
         return
-    from agentgauge.model_client import list_bedrock_models
+    from agentgauge.model_client import list_bedrock_models, list_openrouter_models
 
     try:
-        rows = list_bedrock_models(region or cfg.models.region, profile or cfg.models.profile)
+        if cfg.models.provider == "openrouter":
+            rows = list_openrouter_models()  # public catalog: no key, no cost
+        else:
+            rows = list_bedrock_models(region or cfg.models.region, profile or cfg.models.profile)
     except Exception as exc:
-        raise _fail(f"Could not list models ({type(exc).__name__}: {exc}). Check the AWS profile, sign-in and Region."
-        ) from exc
+        hint = ("Check your network." if cfg.models.provider == "openrouter"
+                else "Check the AWS profile, sign-in and Region.")
+        raise _fail(f"Could not list models ({type(exc).__name__}: {exc}). {hint}") from exc
     t = Table("id", "kind", "provider", "name", "inference")
     for r in rows:
         if contains and contains.lower() not in (r["id"] + r["name"]).lower():
@@ -428,7 +453,9 @@ def list_models(
         t.add_row(r["id"], r["kind"], r["provider"], r["name"], r["inference"])
     console.print(t)
     console.print("Pick a tool-use capable model for the target (cheap) and a stronger one for the judge. "
-                  "Models that only list INFERENCE_PROFILE must be called via an inference-profile id.")
+                  + ("Add both to pricing.yaml (prices above are per 1M tokens; pricing.yaml is per 1K)."
+                     if cfg.models.provider == "openrouter" else
+                     "Models that only list INFERENCE_PROFILE must be called via an inference-profile id."))
 
 
 @app.command()

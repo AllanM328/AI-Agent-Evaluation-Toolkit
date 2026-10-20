@@ -13,6 +13,7 @@ CONFIG_ENV = "AGENTGAUGE_CONFIG"
 
 
 class ModelsConfig(BaseModel):
+    provider: Literal["bedrock", "openrouter"] = "bedrock"
     target_model_id: str | None = None
     judge_model_id: str | None = None
     region: str | None = None
@@ -120,6 +121,8 @@ def load_config(path: str | Path | None = None) -> Config:
     cfg.source = str(cfg_file) if cfg_file else None
 
     env = os.environ
+    if env.get("AGENTGAUGE_PROVIDER"):
+        cfg.models.provider = ModelsConfig.model_validate({"provider": env["AGENTGAUGE_PROVIDER"]}).provider
     if env.get("AGENTGAUGE_TARGET_MODEL_ID"):
         cfg.models.target_model_id = env["AGENTGAUGE_TARGET_MODEL_ID"]
     if env.get("AGENTGAUGE_JUDGE_MODEL_ID"):

@@ -61,6 +61,7 @@ def test_live_run_refuses_without_model_or_credentials(cli_env):
 
 
 def test_live_run_refuses_without_aws_credentials(cli_env, monkeypatch):
+    monkeypatch.setenv("AGENTGAUGE_PROVIDER", "bedrock")
     db, _ = cli_env
     monkeypatch.setenv("AGENTGAUGE_TARGET_MODEL_ID", "some-model")
     monkeypatch.setenv("AGENTGAUGE_JUDGE_MODEL_ID", "some-judge")
@@ -79,6 +80,7 @@ def test_live_run_refuses_without_aws_credentials(cli_env, monkeypatch):
 
 
 def test_live_run_stops_when_unpriced_or_over_budget(cli_env, monkeypatch, tmp_path):
+    monkeypatch.setenv("AGENTGAUGE_PROVIDER", "bedrock")
     db, _ = cli_env
     monkeypatch.setenv("AGENTGAUGE_TARGET_MODEL_ID", "unpriced-model")
     monkeypatch.setenv("AGENTGAUGE_JUDGE_MODEL_ID", "unpriced-judge")
@@ -107,6 +109,7 @@ def _priced_config(tmp_path, cap):
 
 
 def test_live_replay_is_gated_like_run(cli_env, monkeypatch, tmp_path):
+    monkeypatch.setenv("AGENTGAUGE_PROVIDER", "bedrock")
     db, _ = cli_env
     trace = str(REPO_ROOT / "examples/traces/example_trace.json")
     calls = []
@@ -145,6 +148,7 @@ def test_live_replay_runs_after_confirmation(cli_env, monkeypatch, tmp_path):
 
 
 def test_list_models_passes_profile_and_region(cli_env, monkeypatch):
+    monkeypatch.setenv("AGENTGAUGE_PROVIDER", "bedrock")
     seen = []
     monkeypatch.setattr("agentgauge.model_client.list_bedrock_models",
                         lambda region, profile=None: seen.append((region, profile)) or [])

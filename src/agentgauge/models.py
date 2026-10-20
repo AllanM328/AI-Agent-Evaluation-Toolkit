@@ -221,6 +221,7 @@ class RunSummary(BaseModel):
     n_scenarios: int = 0
     n_passed: int = 0
     n_skipped: int = 0
+    n_errored: int = 0  # trace status ERROR (API failure): counted as not passed, excluded from components
     pass_rate: float | None = None
     by_category: dict[str, CategoryStats] = Field(default_factory=dict)
     functional_pass_rate: float | None = None

@@ -28,7 +28,32 @@ agentgauge dashboard                                   # http://localhost:8501
 
 `agentgauge demo` writes to `agentgauge.db`. Every command takes `--mock` to stay fully offline.
 
+## Live runs on OpenRouter (default)
+
+`config.yaml` sets `models.provider: openrouter`. One API key gives access to many model families, so the judge can come from a different family than the agent it grades.
+
+1. **Key.** Create one at [openrouter.ai/keys](https://openrouter.ai/keys). A per-key credit limit is a good idea. Export it in your shell; never put it in `config.yaml` or commit it:
+   ```bash
+   export OPENROUTER_API_KEY=...            # read from the environment only
+   ```
+2. **Models.** `agentgauge list-models` lists OpenRouter's tool-capable models with prices (public catalog, no key or cost). Current choice:
+   ```bash
+   export AGENTGAUGE_TARGET_MODEL_ID=openai/gpt-4.1-mini
+   export AGENTGAUGE_JUDGE_MODEL_ID=anthropic/claude-haiku-5.5
+   ```
+3. **Estimate, then run.** Same commands as below (`agentgauge estimate`, `run`, `compare`, ...). Before any live call, AgentGauge validates the key with OpenRouter's free `/key` endpoint, shows the key's usage and remaining limit, prints the estimate, and asks for confirmation. A rejected key or an empty balance (HTTP 401/402) stops the suite instead of failing every scenario.
+
+| Role | OpenRouter model ID | Price per 1M tokens (in / out) | Notes |
+|---|---|---|---|
+| Target agent | `openai/gpt-4.1-mini` | $0.40 / $1.60 | established tool caller |
+| LLM judge | `anthropic/claude-haiku-5.5` | $0.10 / $0.50 | different family from the target |
+
+The estimate for all 25 scenarios is about $0.09 per agent version (×2 safety factor included).
+
 ## Live runs on Amazon Bedrock
+
+Set `AGENTGAUGE_PROVIDER=bedrock` (or `models.provider: bedrock`). As of 2026-10-20 this project's Bedrock quotas in us-east-2 are 0, which is blocked on an AWS Support case (docs/DECISIONS.md D31).
+
 
 1. **AWS setup (humans, on your own computer).** Follow the [Agent Toolkit for AWS setup](https://raw.githubusercontent.com/aws/agent-toolkit-for-aws/refs/heads/main/setup-instructions/setup.md) with profile `agentgauge`, Region `us-east-2` (this project's selected Region on the new AWS experience), and the new AWS experience. It installs the AWS CLI and signs you in with `aws login --profile agentgauge`. **Set an AWS Budgets alarm or spend limit** with a low cap before the first live run. Re-install AgentGauge after pulling (`pip install -e ".[dev]"`): reading `aws login` credentials needs `boto3[crt]>=1.41`.
 2. **Pick models.** Never hard-code them; AgentGauge reads them from config or env:
@@ -56,8 +81,8 @@ agentgauge dashboard                                   # http://localhost:8501
 
 | Role | Model / inference profile ID | Region | Notes |
 |---|---|---|---|
-| Target agent | _TBD_ | us-east-2 | cheap, tool-use capable |
-| LLM judge | _TBD_ | us-east-2 | stronger; different family if possible |
+| Target agent | `amazon.nova-lite-v1:0` | us-east-2 | ON_DEMAND in-Region; $0.06 / $0.24 per 1M tokens (in/out) |
+| LLM judge | `us.amazon.nova-pro-v1:0` | us-east-2 (US cross-Region profile) | $0.80 / $3.20 per 1M tokens; same Nova family as the target (no other family was checked) |
 
 ### Cost and safety guardrails
 
@@ -74,7 +99,7 @@ scenarios/*.yaml
       │
       ▼
  Runner (budgets, ledger) ──► AgentAdapter ──► Sandbox tools (fake store)
-      │                        ├─ SampleAgent v1 / v2 (Bedrock Converse tool loop)
+      │                        ├─ SampleAgent v1 / v2 (Converse-format tool loop)
       │                        └─ ReplayAdapter (bring-your-own traces)
       │                                   │
       │                                   ▼
@@ -88,7 +113,7 @@ scenarios/*.yaml
  Scoring ──► SQLite (runs, results, cost_ledger) ──► Streamlit dashboard · CLI · Markdown/HTML reports
 ```
 
-Everything that calls a model goes through `ModelClient`: `BedrockClient` (Converse API) or `MockClient` (deterministic; scripted for unit tests, policy-driven for offline end-to-end runs).
+Everything that calls a model goes through `ModelClient`: `OpenRouterClient` (chat completions, translated to and from Converse format), `BedrockClient` (Converse API), or `MockClient` (deterministic; scripted for unit tests, policy-driven for offline end-to-end runs).
 
 ## The target agent
 
