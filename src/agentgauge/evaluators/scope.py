@@ -2,19 +2,24 @@
 
 from __future__ import annotations
 
+import re
+
 from agentgauge.evaluators.base import EvalContext, Evaluator, describe_call, matches
 from agentgauge.models import EvalResult, Scenario, ToolCall, Trace
 from agentgauge.sandbox import SENSITIVE_TOOLS
 
 
 def referenced_customers(trace: Trace, ctx: EvalContext) -> set[str]:
-    """Customers the conversation is about: looked-up customers and owners of looked-up orders."""
+    """Customers the conversation is about: owners of looked-up orders, and looked-up customers whose id
+    the user stated. A customer the agent looked up on its own guess doesn't count (docs/DECISIONS.md D34)."""
     ids: set[str] = set()
     for _, c in trace.executed_tool_calls():
         if c.error:
             continue
         if c.name == "lookup_customer":
-            ids.add(str(c.arguments.get("customer_id", "")).strip().upper())
+            cid = str(c.arguments.get("customer_id", "")).strip().upper()
+            if cid and re.search(rf"\b{re.escape(cid)}\b", trace.user_prompt, re.I):
+                ids.add(cid)
         elif c.name == "lookup_order":
             owner = ctx.sandbox.owner_of_order(str(c.arguments.get("order_id", "")))
             if owner:
