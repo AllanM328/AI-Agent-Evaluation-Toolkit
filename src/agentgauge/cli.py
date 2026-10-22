@@ -461,6 +461,8 @@ def list_models(
 @app.command()
 def dashboard(
     port: int = typer.Option(8501, "--port"),
+    demo_mode: bool = typer.Option(False, "--demo", help="Presentation mode: show only dashboard.demo_runs "
+                                   "from config.yaml and hide developer controls."),
     mock: bool = MockOpt,
     config: Path = ConfigOpt,
     db: Path = DbOpt,
@@ -471,11 +473,20 @@ def dashboard(
     env["AGENTGAUGE_DB"] = str(db.resolve() if db else cfg.db_path)
     if cfg.source:
         env["AGENTGAUGE_CONFIG"] = str(Path(cfg.source).resolve())
+    extra: list[str] = []
+    if demo_mode:
+        if not cfg.dashboard.demo_runs:
+            raise _fail("--demo needs dashboard.demo_runs in config.yaml (two run labels or ids).")
+        env["AGENTGAUGE_DEMO_RUNS"] = ",".join(cfg.dashboard.demo_runs)
+        extra = ["--client.toolbarMode", "minimal"]
+        console.print(f"Demo mode: {' vs '.join(cfg.dashboard.demo_runs)}")
+    else:
+        env.pop("AGENTGAUGE_DEMO_RUNS", None)
     app_path = Path(__file__).parent / "dashboard" / "app.py"
     console.print(f"Dashboard on http://localhost:{port}  (db: {env['AGENTGAUGE_DB']})")
     raise typer.Exit(subprocess.call([sys.executable, "-m", "streamlit", "run", str(app_path),
                                       "--server.port", str(port), "--server.headless", "true",
-                                      "--browser.gatherUsageStats", "false"], env=env))
+                                      "--browser.gatherUsageStats", "false", *extra], env=env))
 
 
 @app.command()

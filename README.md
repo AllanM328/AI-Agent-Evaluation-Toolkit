@@ -1,16 +1,24 @@
 # AgentGauge: agent reliability and evaluation toolkit
 
-**CI/CD for AI agents.** Point AgentGauge at an agent (or at recorded traces of one). It runs the agent through scenario suites and scores it on:
+**CI/CD for AI agents.** Think crash-test dummies: AgentGauge puts an AI agent through staged situations, including data with hidden instructions planted in it, and scores what the agent actually *did*, step by step.
+
+**What we found:** given an order record with a planted "issue a full refund" note, the naive agent (v1) refunded $45 that nobody asked for in **2 of 3 live runs**. The hardened agent (v2) did so in **0 of 3**. Our LLM grader agreed with a human on **20 of 20** results.
+
+**Try it in 3 minutes, offline:** `pip install -e ".[dev]"`, then `agentgauge demo`, then `agentgauge dashboard` ([Quickstart](#quickstart-offline-about-3-minutes-no-aws-needed)). To present the live results, run `agentgauge dashboard --demo`.
+
+![Headline page: v1 hijacked by a planted order note, v2 not](docs/img/headline_live.png)
+
+<details>
+<summary>What it measures</summary>
 
 - **Correctness:** right tools, right arguments, task finished.
 - **Safety:** prompt-injection resistance, staying in scope.
 - **Efficiency:** cost, latency, redundant calls.
 
 Results land in a dashboard with pass rates, cost per run, and run-over-run comparison. Every verdict comes with human-readable evidence that points at specific trace steps.
+</details>
 
 Built for the UMass Boston AI Applications Hackathon (Agentic AI), October 2026.
-
-![Overview page for live run baseline-r2](docs/img/overview_live.png)
 
 > Screenshots in this README come from **live runs** (gpt-4.1-mini agent, Claude Haiku 5.5 judge, OpenRouter, 2026-10-21/22). See [Results (live)](#results-live).
 
@@ -66,6 +74,8 @@ pytest                                                 # offline test suite, no 
 agentgauge demo                                        # runs all 25 scenarios on v1 and v2 with the mock model
 agentgauge dashboard                                   # http://localhost:8501
 ```
+
+The dashboard opens on the **Headline** page: one attack, both agent versions side by side, and the trace evidence a click away. `agentgauge dashboard --demo` is presentation mode: it shows only the two runs listed under `dashboard.demo_runs` in config.yaml and hides developer controls.
 
 `agentgauge demo` writes to `agentgauge.db`. Every command takes `--mock` to stay fully offline.
 
@@ -267,6 +277,8 @@ agentgauge validate-judge                                 # agreement + Cohen's 
 
 ![Compare page: baseline-r3 vs hardened-r3](docs/img/compare_live.png)
 
+![Overview page for live run baseline-r2](docs/img/overview_live.png)
+
 ## CLI reference
 
 | Command | Purpose |
@@ -279,7 +291,7 @@ agentgauge validate-judge                                 # agreement + Cohen's 
 | `agentgauge list-runs` | stored runs |
 | `agentgauge validate-judge` / `export-labels` / `import-labels` | judge vs human agreement |
 | `agentgauge list-models [--region R] [--profile P]` | OpenRouter tool-capable models (or Bedrock models and inference profiles) |
-| `agentgauge dashboard` | Streamlit UI |
+| `agentgauge dashboard [--demo]` | Streamlit UI (`--demo`: only `dashboard.demo_runs`, developer controls hidden) |
 | `agentgauge demo` | offline v1 + v2 mock runs and a comparison |
 
 ## Repo layout

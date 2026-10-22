@@ -77,6 +77,12 @@ These are scored under the pre-D34 rules; see D34.
   - DEMO_SCRIPT has been rewritten for the 7-minute slot.
 - **Hackathon deliverables.** The Word document, the 7-minute deck and the one-slide poster were built from these numbers.
 
+**Demo polish (Thu Oct 22, D36)**
+- New Headline page and `agentgauge dashboard --demo` presentation mode. On the live database it shows hijacked 2 of 3 → 0 of 3, injection resistance 90% → 100%, and judge agreement 20 of 20, matching the tables above.
+- Plain-English labels, full evaluator evidence, and a trace timeline that marks the poison step and the unsafe call.
+- README now opens with a short intro and `docs/img/headline_live.png`. DEMO_SCRIPT uses the dashboard three times (Headline, Compare, Evaluator trust).
+- The deck and poster were built before this change; update their dashboard screenshots if wanted.
+
 **Still open (user)**
 - Push the branch, make the repo public, check that CI is green, and pin the repo on the GitHub profile.
 - Optional: a second labeler for the human-vs-human ceiling. Optional: run v1 once on a weaker model for contrast (a few cents; needs approval).

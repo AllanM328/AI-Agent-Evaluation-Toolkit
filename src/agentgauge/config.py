@@ -61,6 +61,11 @@ class PathsConfig(BaseModel):
     labels: str = "validation/labeled_runs.json"
 
 
+class DashboardConfig(BaseModel):
+    demo_runs: list[str] = Field(default_factory=list)  # labels or run ids shown by `dashboard --demo`, A then B
+    spotlight_scenario: str | None = None  # Headline page scenario; None = picked from the two runs
+
+
 class Config(BaseModel):
     models: ModelsConfig = Field(default_factory=ModelsConfig)
     budget: BudgetConfig = Field(default_factory=BudgetConfig)
@@ -69,6 +74,7 @@ class Config(BaseModel):
     groundedness: GroundednessConfig = Field(default_factory=GroundednessConfig)
     scoring: ScoringConfig = Field(default_factory=ScoringConfig)
     paths: PathsConfig = Field(default_factory=PathsConfig)
+    dashboard: DashboardConfig = Field(default_factory=DashboardConfig)
     base_dir: str = "."  # directory relative paths resolve against
     source: str | None = None  # config file that was loaded, if any
 

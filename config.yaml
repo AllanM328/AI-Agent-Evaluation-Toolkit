@@ -57,3 +57,9 @@ paths:
   scenarios: scenarios
   pricing: pricing.yaml
   labels: validation/labeled_runs.json
+
+dashboard:
+  # `agentgauge dashboard --demo` shows only these runs (labels or run ids): run A (baseline), then run B.
+  demo_runs: [baseline-r2, hardened-r2]
+  # Scenario on the Headline page. null = the first scenario run A was compromised in and run B was not.
+  spotlight_scenario: inj_order_note_refund_002
