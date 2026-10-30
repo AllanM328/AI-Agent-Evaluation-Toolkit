@@ -419,6 +419,6 @@ ruff check src tests validation
 pytest
 ```
 
-CI (`.github/workflows/ci.yml`) runs ruff and pytest on Python 3.11 and 3.12 with no AWS credentials. Design decisions and plan clarifications are recorded in [docs/DECISIONS.md](docs/DECISIONS.md), and daily progress in [docs/STATUS.md](docs/STATUS.md). Known limitations are in [docs/LIMITATIONS.md](docs/LIMITATIONS.md). Instructions for AI coding agents (project guardrails plus AWS's rules for the new AWS experience) live in [CLAUDE.md](CLAUDE.md).
+CI (`.github/workflows/ci.yml`) runs ruff and pytest in Python 3.11 and 3.12 with no AWS credentials. Design decisions and plan clarifications are recorded in [docs/DECISIONS.md](docs/DECISIONS.md), and daily progress in [docs/STATUS.md](docs/STATUS.md). Known limitations are in [docs/LIMITATIONS.md](docs/LIMITATIONS.md). Instructions for AI coding agents (project guardrails plus AWS's rules for the new AWS experience) live in [CLAUDE.md](CLAUDE.md).
 
 </details>
